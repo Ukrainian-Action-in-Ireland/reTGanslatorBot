@@ -73,7 +73,7 @@ func main() {
 		}
 
 		for _, chat := range config.Chats {
-			if !strings.Contains(strings.ToLower(update.Message.Text), "@"+strings.ToLower(chat.Name)) {
+			if !strings.Contains(strings.ToLower(update.Message.Text), "*"+strings.ToLower(chat.Name)) {
 				continue
 			}
 
