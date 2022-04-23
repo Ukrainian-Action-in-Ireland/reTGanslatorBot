@@ -77,6 +77,11 @@ func main() {
 				continue
 			}
 
+			if update.Message.ReplyToMessage != nil {
+				msg := tgbotapi.NewForward(chat.ID, update.Message.Chat.ID, update.Message.ReplyToMessage.MessageID)
+				bot.Send(msg)
+			}
+
 			msg := tgbotapi.NewForward(chat.ID, update.Message.Chat.ID, update.Message.MessageID)
 			bot.Send(msg)
 		}
