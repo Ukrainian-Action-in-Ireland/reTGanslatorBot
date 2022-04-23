@@ -77,7 +77,7 @@ func main() {
 				continue
 			}
 
-			msg := tgbotapi.NewMessage(chat.ID, update.Message.Text)
+			msg := tgbotapi.NewForward(chat.ID, update.Message.Chat.ID, update.Message.MessageID)
 			bot.Send(msg)
 		}
 	}
