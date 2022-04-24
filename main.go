@@ -19,6 +19,10 @@ type Chat struct {
 	Name string `json:"name"`
 }
 
+func hasChatTag(chatName, text string) bool {
+	return strings.Contains(strings.ToLower(text), "*"+strings.ToLower(chatName))
+}
+
 func main() {
 	botToken := os.Getenv("BOT_TOKEN")
 	if botToken == "" {
@@ -59,7 +63,7 @@ func main() {
 			continue
 		}
 
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+		log.Printf("[%s] text: %s, caption: %s", update.Message.From.UserName, update.Message.Text, update.Message.Caption)
 
 		found := false
 		for _, chat := range config.Chats {
@@ -73,7 +77,8 @@ func main() {
 		}
 
 		for _, chat := range config.Chats {
-			if !strings.Contains(strings.ToLower(update.Message.Text), "*"+strings.ToLower(chat.Name)) {
+			hasTags := hasChatTag(chat.Name, update.Message.Text) || hasChatTag(chat.Name, update.Message.Caption)
+			if !hasTags {
 				continue
 			}
 
