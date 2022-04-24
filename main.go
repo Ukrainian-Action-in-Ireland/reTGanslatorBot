@@ -15,8 +15,8 @@ type Config struct {
 }
 
 type Chat struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID      int64    `json:"id"`
+	Aliases []string `json:"aliases"`
 }
 
 func hasChatTag(chatName, text string) bool {
@@ -77,7 +77,13 @@ func main() {
 		}
 
 		for _, chat := range config.Chats {
-			hasTags := hasChatTag(chat.Name, update.Message.Text) || hasChatTag(chat.Name, update.Message.Caption)
+			hasTags := false
+			for _, alias := range chat.Aliases {
+				if hasChatTag(alias, update.Message.Text) || hasChatTag(alias, update.Message.Caption) {
+					hasTags = true
+					break
+				}
+			}
 			if !hasTags {
 				continue
 			}
