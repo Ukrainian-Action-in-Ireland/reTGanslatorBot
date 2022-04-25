@@ -65,6 +65,17 @@ func main() {
 
 		log.Printf("[%s] text: %s, caption: %s", update.Message.From.UserName, update.Message.Text, update.Message.Caption)
 
+		if update.Message.Entities != nil {
+			for _, entity := range *update.Message.Entities {
+				username := update.Message.Text[entity.Offset : entity.Offset+entity.Length]
+				if entity.Type == "mention" && username == "@reTGanslatorBot" {
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Tags: *all *tech *events *b2c *design *pr&comms")
+					msg.BaseChat.ReplyToMessageID = update.Message.MessageID
+					bot.Send(msg)
+				}
+			}
+		}
+
 		found := false
 		for _, chat := range config.Chats {
 			if update.Message.Chat.ID == chat.ID {
