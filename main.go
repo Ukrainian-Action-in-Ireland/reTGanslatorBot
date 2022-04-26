@@ -45,34 +45,22 @@ func (config Config) AllAliases() []string {
 }
 
 func (bh BotHandlers) inlineQuery(update tgbotapi.Update) {
-	log.Printf("before if")
-	log.Printf("after if")
 	query := *update.InlineQuery
 	aliases := bh.config.AllAliases()
 	for i, alias := range aliases {
 		aliases[i] = "*" + alias
 	}
-	log.Printf("# aliases: %v", len(aliases))
-	for _, alias := range aliases {
-		log.Printf("alias: %s", alias)
-	}
 	var matched []string
 	words := strings.Fields(query.Query)
 	if len(words) == 0 {
-		log.Printf("empty query")
 		matched = aliases
 	} else {
-		log.Printf("filtering")
 		lastWord := words[len(words)-1]
 		for _, alias := range aliases {
 			if strings.Contains(strings.ToLower(alias), strings.ToLower(lastWord)) {
 				matched = append(matched, alias)
 			}
 		}
-	}
-	log.Printf("# matched: %v", len(matched))
-	for _, alias := range matched {
-		log.Printf("matched alias: %s", alias)
 	}
 	var results []interface{}
 	for _, alias := range matched {
