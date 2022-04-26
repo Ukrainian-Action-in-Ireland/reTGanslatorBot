@@ -19,8 +19,59 @@ type Chat struct {
 	Aliases []string `json:"aliases"`
 }
 
+type BotHandlers struct {
+	bot    *tgbotapi.BotAPI
+	config Config
+}
+
 func hasChatTag(chatName, text string) bool {
 	return strings.Contains(strings.ToLower(text), "*"+strings.ToLower(chatName))
+}
+
+func (bh BotHandlers) message(update tgbotapi.Update) {
+	log.Printf("[%s] text: %s, caption: %s", update.Message.From.UserName, update.Message.Text, update.Message.Caption)
+	if update.Message.Entities != nil {
+		for _, entity := range *update.Message.Entities {
+			username := update.Message.Text[entity.Offset : entity.Offset+entity.Length]
+			if entity.Type == "mention" && username == "@reTGanslatorBot" {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Tags: *all *tech *events *b2c *design *pr&comms")
+				msg.BaseChat.ReplyToMessageID = update.Message.MessageID
+				bh.bot.Send(msg)
+			}
+		}
+	}
+
+	found := false
+	for _, chat := range bh.config.Chats {
+		if update.Message.Chat.ID == chat.ID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return
+	}
+
+	for _, chat := range bh.config.Chats {
+		hasTags := false
+		for _, alias := range chat.Aliases {
+			if hasChatTag(alias, update.Message.Text) || hasChatTag(alias, update.Message.Caption) {
+				hasTags = true
+				break
+			}
+		}
+		if !hasTags {
+			continue
+		}
+
+		if update.Message.ReplyToMessage != nil {
+			msg := tgbotapi.NewForward(chat.ID, update.Message.Chat.ID, update.Message.ReplyToMessage.MessageID)
+			bh.bot.Send(msg)
+		}
+
+		msg := tgbotapi.NewForward(chat.ID, update.Message.Chat.ID, update.Message.MessageID)
+		bh.bot.Send(msg)
+	}
 }
 
 func main() {
@@ -49,6 +100,8 @@ func main() {
 		log.Fatalf("Bot API failed to initialize: %v", err)
 	}
 
+	botHandlers := BotHandlers{bot, config}
+
 	bot.Debug = true
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
@@ -59,53 +112,11 @@ func main() {
 	updates, err := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		if update.Message == nil { // ignore any non-Message Updates
-			continue
-		}
-
-		log.Printf("[%s] text: %s, caption: %s", update.Message.From.UserName, update.Message.Text, update.Message.Caption)
-
-		if update.Message.Entities != nil {
-			for _, entity := range *update.Message.Entities {
-				username := update.Message.Text[entity.Offset : entity.Offset+entity.Length]
-				if entity.Type == "mention" && username == "@reTGanslatorBot" {
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Tags: *all *tech *events *b2c *design *pr&comms")
-					msg.BaseChat.ReplyToMessageID = update.Message.MessageID
-					bot.Send(msg)
-				}
-			}
-		}
-
-		found := false
-		for _, chat := range config.Chats {
-			if update.Message.Chat.ID == chat.ID {
-				found = true
-				break
-			}
-		}
-		if !found {
-			continue
-		}
-
-		for _, chat := range config.Chats {
-			hasTags := false
-			for _, alias := range chat.Aliases {
-				if hasChatTag(alias, update.Message.Text) || hasChatTag(alias, update.Message.Caption) {
-					hasTags = true
-					break
-				}
-			}
-			if !hasTags {
-				continue
-			}
-
-			if update.Message.ReplyToMessage != nil {
-				msg := tgbotapi.NewForward(chat.ID, update.Message.Chat.ID, update.Message.ReplyToMessage.MessageID)
-				bot.Send(msg)
-			}
-
-			msg := tgbotapi.NewForward(chat.ID, update.Message.Chat.ID, update.Message.MessageID)
-			bot.Send(msg)
+		switch {
+		case update.Message != nil:
+			botHandlers.message(update)
+		default:
+			log.Printf("Unknown type of message")
 		}
 	}
 }
