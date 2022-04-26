@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"unicode"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -50,12 +51,13 @@ func (bh BotHandlers) inlineQuery(update tgbotapi.Update) {
 	for i, alias := range aliases {
 		aliases[i] = "*" + alias
 	}
-	var matched []string
+	matched := aliases
 	words := strings.Fields(query.Query)
-	if len(words) == 0 {
-		matched = aliases
-	} else {
+	withoutLastWord := query.Query
+	if len(words) > 0 {
+		matched = nil
 		lastWord := words[len(words)-1]
+		withoutLastWord = strings.TrimRightFunc(query.Query, unicode.IsSpace)[0 : len(query.Query)-len(lastWord)]
 		for _, alias := range aliases {
 			if strings.Contains(strings.ToLower(alias), strings.ToLower(lastWord)) {
 				matched = append(matched, alias)
@@ -64,7 +66,8 @@ func (bh BotHandlers) inlineQuery(update tgbotapi.Update) {
 	}
 	var results []interface{}
 	for _, alias := range matched {
-		results = append(results, tgbotapi.NewInlineQueryResultArticle(alias, alias, alias))
+		fullSuggestion := withoutLastWord + alias
+		results = append(results, tgbotapi.NewInlineQueryResultArticle(fullSuggestion, alias, fullSuggestion))
 	}
 	inlineConfig := tgbotapi.InlineConfig{
 		InlineQueryID: query.ID,
