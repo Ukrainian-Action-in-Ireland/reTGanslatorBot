@@ -79,7 +79,11 @@ func (bh BotHandlers) message(update tgbotapi.Update) {
 		for _, entity := range *update.Message.Entities {
 			username := update.Message.Text[entity.Offset : entity.Offset+entity.Length]
 			if entity.Type == "mention" && username == "@reTGanslatorBot" {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Tags: *all *tech *events *b2c *design *pr&comms")
+				aliases := bh.config.AllAliases()
+				for i, alias := range aliases {
+					aliases[i] = "*" + strings.ToLower(alias)
+				}
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Tags: "+strings.Join(aliases, " "))
 				msg.BaseChat.ReplyToMessageID = update.Message.MessageID
 				bh.bot.Send(msg)
 			}
