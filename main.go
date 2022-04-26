@@ -116,13 +116,18 @@ func (bh BotHandlers) message(update tgbotapi.Update) {
 			continue
 		}
 
+		{
+			msg := tgbotapi.NewMessage(chat.ID, "Переселаю повідомлення з чату "+update.Message.Chat.Title)
+			bh.bot.Send(msg)
+		}
 		if update.Message.ReplyToMessage != nil {
 			msg := tgbotapi.NewForward(chat.ID, update.Message.Chat.ID, update.Message.ReplyToMessage.MessageID)
 			bh.bot.Send(msg)
 		}
-
-		msg := tgbotapi.NewForward(chat.ID, update.Message.Chat.ID, update.Message.MessageID)
-		bh.bot.Send(msg)
+		{
+			msg := tgbotapi.NewForward(chat.ID, update.Message.Chat.ID, update.Message.MessageID)
+			bh.bot.Send(msg)
+		}
 	}
 }
 
