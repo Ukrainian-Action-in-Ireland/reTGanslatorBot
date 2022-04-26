@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"sort"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -26,6 +27,62 @@ type BotHandlers struct {
 
 func hasChatTag(chatName, text string) bool {
 	return strings.Contains(strings.ToLower(text), "*"+strings.ToLower(chatName))
+}
+
+func (config Config) AllAliases() []string {
+	aliases := make(map[string]bool)
+	for _, chat := range config.Chats {
+		for _, alias := range chat.Aliases {
+			aliases[alias] = true
+		}
+	}
+	var aliasesList []string
+	for alias := range aliases {
+		aliasesList = append(aliasesList, alias)
+	}
+	sort.StringSlice(aliasesList).Sort()
+	return aliasesList
+}
+
+func (bh BotHandlers) inlineQuery(update tgbotapi.Update) {
+	log.Printf("before if")
+	log.Printf("after if")
+	query := *update.InlineQuery
+	aliases := bh.config.AllAliases()
+	for i, alias := range aliases {
+		aliases[i] = "*" + alias
+	}
+	log.Printf("# aliases: %v", len(aliases))
+	for _, alias := range aliases {
+		log.Printf("alias: %s", alias)
+	}
+	var matched []string
+	words := strings.Fields(query.Query)
+	if len(words) == 0 {
+		log.Printf("empty query")
+		matched = aliases
+	} else {
+		log.Printf("filtering")
+		lastWord := words[len(words)-1]
+		for _, alias := range aliases {
+			if strings.Contains(strings.ToLower(alias), strings.ToLower(lastWord)) {
+				matched = append(matched, alias)
+			}
+		}
+	}
+	log.Printf("# matched: %v", len(matched))
+	for _, alias := range matched {
+		log.Printf("matched alias: %s", alias)
+	}
+	var results []interface{}
+	for _, alias := range matched {
+		results = append(results, tgbotapi.NewInlineQueryResultArticle(alias, alias, alias))
+	}
+	inlineConfig := tgbotapi.InlineConfig{
+		InlineQueryID: query.ID,
+		Results:       results,
+	}
+	bh.bot.AnswerInlineQuery(inlineConfig)
 }
 
 func (bh BotHandlers) message(update tgbotapi.Update) {
@@ -113,6 +170,8 @@ func main() {
 
 	for update := range updates {
 		switch {
+		case update.InlineQuery != nil:
+			botHandlers.inlineQuery(update)
 		case update.Message != nil:
 			botHandlers.message(update)
 		default:
