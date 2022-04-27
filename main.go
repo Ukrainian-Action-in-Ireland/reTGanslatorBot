@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -131,6 +132,27 @@ func (bh BotHandlers) message(update tgbotapi.Update) {
 	}
 }
 
+func (bh BotHandlers) command(update tgbotapi.Update) {
+	aliases := bh.config.AllAliases()
+	for i := range aliases {
+		aliases[i] = "*" + strings.ToLower(aliases[i])
+	}
+	aliasesStr := strings.Join(aliases, " ")
+	msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf(`
+Для того, щоб поширити ваше повідомлення по декільком чатам одночасно, y тексті повідомлення напишіть будь-який з наступних тегів з зірочкою, і бот перешле повідомлення до всіх вказаних чатів:
+%s
+
+Для того, щоб перекинути повідомлення по всіх чатах, використовуйте тег *everyone.
+Для того, щоб перекинути вже відправлене повідомлення, відповідайте на це повідомлення і у тексті відповіді вказуйте теги. Бот знайде теги і перекине обидва повідомлення: те, що без тега і на яке відповіли, та вашy відповідь з тегом.
+
+Для того, щоб побачити доступні теги, використовуйте рядок команди бота. Для цього почніть писати повідомлення з "@reTGanslator ", і бот запропонує вам список тегів. Після додавання тексту і всіх тегів натисніть на один з запропонованих тегів для того, щоб відправити повідомлення.
+Також можна тегнути бота у будь-якому повідомленні, і бот пришле список усіх тегів.
+
+Для того, щоб додати бота та теги до вашого чата, звертайтесь до адмінів вашого чату.
+	`, aliasesStr))
+	bh.bot.Send(msg)
+}
+
 func main() {
 	botToken := os.Getenv("BOT_TOKEN")
 	if botToken == "" {
@@ -172,6 +194,8 @@ func main() {
 		switch {
 		case update.InlineQuery != nil:
 			botHandlers.inlineQuery(update)
+		case update.Message != nil && update.Message.IsCommand():
+			botHandlers.command(update)
 		case update.Message != nil:
 			botHandlers.message(update)
 		default:
