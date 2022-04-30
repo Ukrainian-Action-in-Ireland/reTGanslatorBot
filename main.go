@@ -118,7 +118,7 @@ func (bh BotHandlers) message(update tgbotapi.Update) {
 		}
 
 		{
-			msg := tgbotapi.NewMessage(chat.ID, "Переселаю повідомлення з чату "+update.Message.Chat.Title)
+			msg := tgbotapi.NewMessage(chat.ID, "Пересилаю повідомлення з чату "+update.Message.Chat.Title)
 			bh.bot.Send(msg)
 		}
 		if update.Message.ReplyToMessage != nil {
