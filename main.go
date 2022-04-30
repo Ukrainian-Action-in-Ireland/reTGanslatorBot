@@ -42,7 +42,9 @@ func (config Config) AllAliases() []string {
 	for alias := range aliases {
 		aliasesList = append(aliasesList, alias)
 	}
-	sort.StringSlice(aliasesList).Sort()
+	sort.Slice(aliasesList, func(i, j int) bool {
+		return strings.ToLower(aliasesList[i]) < strings.ToLower(aliasesList[j])
+	})
 	return aliasesList
 }
 
