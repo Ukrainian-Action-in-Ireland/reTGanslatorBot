@@ -1,10 +1,11 @@
-package main
+package pkg
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -161,13 +162,20 @@ func (bh BotHandlers) command(update tgbotapi.Update) {
 	bh.bot.Send(msg)
 }
 
-func main() {
+var (
+	botHandlers     BotHandlers
+	botWebhookToken string
+)
+
+func init() {
+	botWebhookToken = os.Getenv("WEBHOOK_TOKEN")
+
 	botToken := os.Getenv("BOT_TOKEN")
 	if botToken == "" {
 		log.Fatalf("BOT_TOKEN has to be specified")
 	}
 
-	configFile, err := os.Open("config.json")
+	configFile, err := os.Open("./serverless_function_source_code/config.json")
 	if err != nil {
 		log.Fatalf("Failed to open config.json: %v", err)
 	}
@@ -187,27 +195,48 @@ func main() {
 		log.Fatalf("Bot API failed to initialize: %v", err)
 	}
 
-	botHandlers := BotHandlers{bot, config}
+	botHandlers = BotHandlers{bot, config}
 
 	bot.Debug = true
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
+}
 
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
+func WebhookUpdatesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		log.Printf("Unknown HTTP method: %s", r.Method)
+		return
+	}
 
-	updates, err := bot.GetUpdatesChan(u)
+	if path := strings.Trim(r.URL.Path, "/"); path != botWebhookToken {
+		log.Printf("Wrong path %s", path)
+		return
+	}
 
-	for update := range updates {
-		switch {
-		case update.InlineQuery != nil:
-			botHandlers.inlineQuery(update)
-		case update.Message != nil && update.Message.IsCommand():
-			botHandlers.command(update)
-		case update.Message != nil:
-			botHandlers.message(update)
-		default:
-			log.Printf("Unknown type of message")
-		}
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Failed to read the incoming payload: %v", err)
+		return
+	}
+	defer r.Body.Close()
+
+	// log.Printf("incoming payload: %s", data)
+
+	var update tgbotapi.Update
+	if err := json.Unmarshal(data, &update); err != nil {
+		log.Printf("Failed to unmarshal incoming update: %v", err)
+		return
+	}
+
+	// allowed_updates=["message", "edited_message", "inline_query"]
+	switch {
+	case update.InlineQuery != nil:
+		botHandlers.inlineQuery(update)
+	case update.Message != nil && update.Message.IsCommand():
+		botHandlers.command(update)
+	case update.Message != nil:
+		botHandlers.message(update)
+	default:
+		log.Printf("Unknown type of message")
 	}
 }

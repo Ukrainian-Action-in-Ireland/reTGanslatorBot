@@ -1,7 +1,8 @@
-module github.com/DzyubSpirit/reTGanslatorBot/v2
+module github.com/DzyubSpirit/reTGanslatorBot
 
-go 1.18
+go 1.16
 
-require github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
-
-require github.com/technoweenie/multipartstreamer v1.0.1 // indirect
+require (
+	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
+	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
+)
