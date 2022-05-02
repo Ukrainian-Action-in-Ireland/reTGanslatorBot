@@ -1,12 +1,9 @@
-package pkg
+package bot
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
-	"os"
 	"sort"
 	"strings"
 	"unicode"
@@ -24,9 +21,16 @@ type Chat struct {
 	Aliases []string `json:"aliases"`
 }
 
-type BotHandlers struct {
+type Handler struct {
 	bot    *tgbotapi.BotAPI
 	config Config
+}
+
+func NewHandler(config Config, bot *tgbotapi.BotAPI) *Handler {
+	return &Handler{
+		bot:    bot,
+		config: config,
+	}
 }
 
 func hasChatTag(chatName, text string) bool {
@@ -50,7 +54,7 @@ func (config Config) AllAliases() []string {
 	return aliasesList
 }
 
-func (bh BotHandlers) inlineQuery(update tgbotapi.Update) {
+func (bh Handler) inlineQuery(update tgbotapi.Update) {
 	query := *update.InlineQuery
 	aliases := bh.config.AllAliases()
 	for i, alias := range aliases {
@@ -81,7 +85,7 @@ func (bh BotHandlers) inlineQuery(update tgbotapi.Update) {
 	bh.bot.AnswerInlineQuery(inlineConfig)
 }
 
-func (bh BotHandlers) message(update tgbotapi.Update) {
+func (bh Handler) message(update tgbotapi.Update) {
 	log.Printf("[%s] text: %s, caption: %s", update.Message.From.UserName, update.Message.Text, update.Message.Caption)
 	if update.Message.Entities != nil {
 		for _, entity := range *update.Message.Entities {
@@ -136,7 +140,7 @@ func (bh BotHandlers) message(update tgbotapi.Update) {
 	}
 }
 
-func (bh BotHandlers) command(update tgbotapi.Update) {
+func (bh Handler) command(update tgbotapi.Update) {
 	aliases := bh.config.AllAliases()
 	for i := range aliases {
 		aliases[i] = "*" + strings.ToLower(aliases[i])
@@ -162,88 +166,17 @@ func (bh BotHandlers) command(update tgbotapi.Update) {
 	bh.bot.Send(msg)
 }
 
-var (
-	botHandlers     BotHandlers
-	botWebhookToken string
-)
-
-func init() {
-	botWebhookToken = os.Getenv("WEBHOOK_TOKEN")
-
-	botToken := os.Getenv("BOT_TOKEN")
-	if botToken == "" {
-		log.Fatalf("BOT_TOKEN has to be specified")
-	}
-
-	configFile, err := os.Open("./serverless_function_source_code/config.json")
-	if err != nil {
-		log.Fatalf("Failed to open config.json: %v", err)
-	}
-
-	configBytes, err := ioutil.ReadAll(configFile)
-	if err != nil {
-		log.Fatalf("Failed to read config.json: %v", err)
-	}
-
-	var config Config
-	if err = json.Unmarshal(configBytes, &config); err != nil {
-		log.Fatalf("Failed to parse config.json: %v", err)
-	}
-
-	bot, err := tgbotapi.NewBotAPI(botToken)
-	if err != nil {
-		log.Fatalf("Bot API failed to initialize: %v", err)
-	}
-
-	botHandlers = BotHandlers{bot, config}
-
-	bot.Debug = true
-
-	log.Printf("Authorized on account %s", bot.Self.UserName)
-}
-
-func WebhookUpdatesHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		log.Printf("Unknown HTTP method: %s", r.Method)
-		httpErr(w, http.StatusMethodNotAllowed)
-		return
-	}
-
-	if path := strings.Trim(r.URL.Path, "/"); path != botWebhookToken {
-		log.Printf("Wrong path %s", path)
-		httpErr(w, http.StatusNotFound)
-		return
-	}
-
-	data, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Printf("Failed to read the incoming payload: %v", err)
-		httpErr(w, http.StatusInternalServerError)
-		return
-	}
-	defer r.Body.Close()
-
-	var update tgbotapi.Update
-	if err := json.Unmarshal(data, &update); err != nil {
-		log.Printf("Failed to unmarshal incoming update: %v", err)
-		httpErr(w, http.StatusBadRequest)
-		return
-	}
-
-	// allowed_updates=["message", "edited_message", "inline_query"]
+func (bh Handler) HandleUpdate(update tgbotapi.Update) error {
+	var err error
 	switch {
 	case update.InlineQuery != nil:
-		botHandlers.inlineQuery(update)
+		bh.inlineQuery(update)
 	case update.Message != nil && update.Message.IsCommand():
-		botHandlers.command(update)
+		bh.command(update)
 	case update.Message != nil:
-		botHandlers.message(update)
+		bh.message(update)
 	default:
-		log.Printf("Unknown type of message")
-		httpErr(w, http.StatusBadRequest)
+		err = errors.New("unknown type of message")
 	}
-}
-
-func httpErr(w http.ResponseWriter, code int) {
-	http.Error(w, http.StatusText(code), code)
+	return err
 }

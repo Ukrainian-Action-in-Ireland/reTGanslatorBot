@@ -3,18 +3,22 @@ BOT_TOKEN?=<your_bot_token>
 WEBHOOK_FUNC_NAME?=tg-webhook-updates
 WEBHOOK_FUNC_REGION?=europe-west2
 
-.PHONY: deploy wh_func wh_set wh_del
+.PHONY: deps deploy wh_func wh_set wh_del
+
+deps:
+	go mod tidy
+	go mod vendor
 
 deploy: export WEBHOOK_TOKEN?=$(shell openssl rand -hex 64)
 deploy:
-	$(MAKE) wh_del wh_func wh_set
+	$(MAKE) deps wh_del wh_func wh_set
 
 wh_func:
 	gcloud functions deploy ${WEBHOOK_FUNC_NAME} \
 		--runtime go116 \
 		--trigger-http \
 		--allow-unauthenticated \
-		--entry-point=WebhookUpdatesHandler \
+		--entry-point=UpdateHandler \
 		--set-env-vars BOT_TOKEN=${BOT_TOKEN},WEBHOOK_TOKEN=${WEBHOOK_TOKEN} \
 		--memory=128MB \
 		--region=${WEBHOOK_FUNC_REGION} \
