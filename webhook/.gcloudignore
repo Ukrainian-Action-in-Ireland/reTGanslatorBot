@@ -1,7 +1,4 @@
 .gcloudignore
-.git
 .gitignore
-.idea
-LICENSE
 Makefile
 README.md
