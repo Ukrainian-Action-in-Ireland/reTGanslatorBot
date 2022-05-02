@@ -205,26 +205,28 @@ func init() {
 func WebhookUpdatesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		log.Printf("Unknown HTTP method: %s", r.Method)
+		httpErr(w, http.StatusMethodNotAllowed)
 		return
 	}
 
 	if path := strings.Trim(r.URL.Path, "/"); path != botWebhookToken {
 		log.Printf("Wrong path %s", path)
+		httpErr(w, http.StatusNotFound)
 		return
 	}
 
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Failed to read the incoming payload: %v", err)
+		httpErr(w, http.StatusInternalServerError)
 		return
 	}
 	defer r.Body.Close()
 
-	// log.Printf("incoming payload: %s", data)
-
 	var update tgbotapi.Update
 	if err := json.Unmarshal(data, &update); err != nil {
 		log.Printf("Failed to unmarshal incoming update: %v", err)
+		httpErr(w, http.StatusBadRequest)
 		return
 	}
 
@@ -238,5 +240,10 @@ func WebhookUpdatesHandler(w http.ResponseWriter, r *http.Request) {
 		botHandlers.message(update)
 	default:
 		log.Printf("Unknown type of message")
+		httpErr(w, http.StatusBadRequest)
 	}
+}
+
+func httpErr(w http.ResponseWriter, code int) {
+	http.Error(w, http.StatusText(code), code)
 }
