@@ -21,12 +21,17 @@ type Chat struct {
 	Aliases []string `json:"aliases"`
 }
 
+type BotAPI interface {
+	AnswerInlineQuery(config tgbotapi.InlineConfig) (tgbotapi.APIResponse, error)
+	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
+}
+
 type Handler struct {
-	bot    *tgbotapi.BotAPI
+	bot    BotAPI
 	config Config
 }
 
-func NewHandler(config Config, bot *tgbotapi.BotAPI) *Handler {
+func NewHandler(config Config, bot BotAPI) *Handler {
 	return &Handler{
 		bot:    bot,
 		config: config,
