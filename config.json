@@ -2,7 +2,17 @@
   "chats": [
     {
       "id": 1123581321,
-      "aliases": ["Example chat"]
+      "aliases": ["Yggdrasil"],
+      "child_chats": [
+        {
+          "id": 20220224,
+          "aliases": ["Asgard"]
+        },
+        {
+          "id": 19170303,
+          "aliases": ["Midgard"]
+        }
+      ]
     }
   ],
   "help_contacts": ["@Kyslytsya", "@Karas", "@Valera", "@Arestovich"]

@@ -17,8 +17,9 @@ type Config struct {
 }
 
 type Chat struct {
-	ID      int64    `json:"id"`
-	Aliases []string `json:"aliases"`
+	ID         int64    `json:"id"`
+	Aliases    []string `json:"aliases"`
+	ChildChats []Chat   `json:"child_chats"`
 }
 
 type BotAPI interface {
