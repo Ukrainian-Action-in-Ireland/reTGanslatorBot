@@ -45,10 +45,15 @@ func hasChatTag(chatName, text string) bool {
 
 func (config Config) AllAliases() []string {
 	aliases := make(map[string]bool)
-	for _, chat := range config.Chats {
+	queue := config.Chats
+	for len(queue) > 0 {
+		chat := queue[0]
+		queue = queue[1:]
+
 		for _, alias := range chat.Aliases {
 			aliases[alias] = true
 		}
+		queue = append(queue, chat.ChildChats...)
 	}
 	var aliasesList []string
 	for alias := range aliases {
@@ -58,6 +63,19 @@ func (config Config) AllAliases() []string {
 		return strings.ToLower(aliasesList[i]) < strings.ToLower(aliasesList[j])
 	})
 	return aliasesList
+}
+
+func (config Config) AllChats() []Chat {
+	var allChats []Chat
+	queue := config.Chats
+	for len(queue) > 0 {
+		chat := queue[0]
+		queue = queue[1:]
+
+		allChats = append(allChats, chat)
+		queue = append(queue, chat.ChildChats...)
+	}
+	return allChats
 }
 
 func (bh Handler) inlineQuery(update tgbotapi.Update) {
@@ -109,7 +127,7 @@ func (bh Handler) message(update tgbotapi.Update) {
 	}
 
 	found := false
-	for _, chat := range bh.config.Chats {
+	for _, chat := range bh.config.AllChats() {
 		if update.Message.Chat.ID == chat.ID {
 			found = true
 			break
@@ -119,7 +137,7 @@ func (bh Handler) message(update tgbotapi.Update) {
 		return
 	}
 
-	for _, chat := range bh.config.Chats {
+	for _, chat := range bh.config.AllChats() {
 		hasTags := false
 		for _, alias := range chat.Aliases {
 			if hasChatTag(alias, update.Message.Text) || hasChatTag(alias, update.Message.Caption) {
