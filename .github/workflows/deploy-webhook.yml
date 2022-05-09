@@ -1,0 +1,58 @@
+name: Deploy webhook
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+jobs:
+
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.16
+
+      - name: Setup Go build caching
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -race -cover -v -count=1 ./...
+
+      - name: Authenticate to Google Cloud
+        uses: 'google-github-actions/auth@v0'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v0'
+
+      - name: Deploy Webhook Cloud Function
+        env:
+          PROD: 'true'
+          BOT_TOKEN: '${{ secrets.BOT_TOKEN }}'
+          CONFIG_DATA: '${{ secrets.CONFIG_DATA }}'
+          WEBHOOK_FUNC_NAME: 'tg-webhook-updates'
+          WEBHOOK_FUNC_REGION: 'europe-west2'
+        run: |
+          echo -n $CONFIG_DATA > config.json
+          sh ./deploy.sh
