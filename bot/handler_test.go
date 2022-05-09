@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/google/go-cmp/cmp"
 )
 
 var config = Config{
@@ -27,6 +28,7 @@ func (fb *fakeBot) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
 }
 
 func (fb *fakeBot) AnswerInlineQuery(config tgbotapi.InlineConfig) (tgbotapi.APIResponse, error) {
+	fb.inlineConfig = config
 	return tgbotapi.APIResponse{}, nil
 }
 
@@ -183,5 +185,81 @@ func TestReplyResendsBothMessages(t *testing.T) {
 	}
 	if len(sent) != 2 {
 		t.Errorf("Expected 2 messages with IDs 152, 612; got with IDs %v", strings.Join(sentStrs, ", "))
+	}
+}
+
+func TestInlineQueries(t *testing.T) {
+	for _, testCase := range []struct {
+		name        string
+		query       string
+		wantResults []interface{}
+	}{
+		{name: "Empty query suggests all tags",
+			query: "",
+			wantResults: []interface{}{
+				tgbotapi.NewInlineQueryResultArticle("*All", "*All", "*All"),
+				tgbotapi.NewInlineQueryResultArticle("*First", "*First", "*First"),
+				tgbotapi.NewInlineQueryResultArticle("*Second", "*Second", "*Second"),
+			}},
+		{name: "A star suggests all tags",
+			query: "*",
+			wantResults: []interface{}{
+				tgbotapi.NewInlineQueryResultArticle("*All", "*All", "*All"),
+				tgbotapi.NewInlineQueryResultArticle("*First", "*First", "*First"),
+				tgbotapi.NewInlineQueryResultArticle("*Second", "*Second", "*Second"),
+			}},
+		{name: "A star and a subword filters suggestions",
+			query: "*S",
+			wantResults: []interface{}{
+				tgbotapi.NewInlineQueryResultArticle("*Second", "*Second", "*Second"),
+			}},
+		{name: "A subword without matches gives no suggestions",
+			query:       "*thi",
+			wantResults: nil},
+		{name: "A subword without star filters suggestions",
+			query: "Fir",
+			wantResults: []interface{}{
+				tgbotapi.NewInlineQueryResultArticle("*First", "*First", "*First"),
+			}},
+		{name: "A subword with a different letter case still matches",
+			query: "sec",
+			wantResults: []interface{}{
+				tgbotapi.NewInlineQueryResultArticle("*Second", "*Second", "*Second"),
+			}},
+		{name: "A star after some text and some space suggests all tags",
+			query: "Some message *",
+			wantResults: []interface{}{
+				tgbotapi.NewInlineQueryResultArticle("Some message *All", "*All", "Some message *All"),
+				tgbotapi.NewInlineQueryResultArticle("Some message *First", "*First", "Some message *First"),
+				tgbotapi.NewInlineQueryResultArticle("Some message *Second", "*Second", "Some message *Second"),
+			}},
+		{name: "A star after some text immediately without any space doesn't suggest anything to not spam",
+			query:       "Some message*",
+			wantResults: nil},
+		{name: "A star after a tag and a space suggests all tags",
+			query: "*first *",
+			wantResults: []interface{}{
+				tgbotapi.NewInlineQueryResultArticle("*first *All", "*All", "*first *All"),
+				tgbotapi.NewInlineQueryResultArticle("*first *First", "*First", "*first *First"),
+				tgbotapi.NewInlineQueryResultArticle("*first *Second", "*Second", "*first *Second"),
+			}},
+		{name: "A star and a subword after a tag and a space filters the tags",
+			query: "*first *a",
+			wantResults: []interface{}{
+				tgbotapi.NewInlineQueryResultArticle("*first *All", "*All", "*first *All"),
+			}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			bot := &fakeBot{}
+			handler := NewHandler(config, bot)
+
+			handler.HandleUpdate(tgbotapi.Update{InlineQuery: &tgbotapi.InlineQuery{
+				Query: testCase.query,
+			}})
+
+			if diff := cmp.Diff(testCase.wantResults, bot.inlineConfig.Results); diff != "" {
+				t.Fatalf("Got incorrect inline query results, cmp.Diff(want, got):\n %s", diff)
+			}
+		})
 	}
 }
