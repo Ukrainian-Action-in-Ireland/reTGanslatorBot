@@ -25,5 +25,5 @@ URL=${URL:-$(gcloud functions describe --region="${WEBHOOK_FUNC_REGION}" "${WEBH
 curl \
   -X POST \
   -F "url=${URL}/webhook/${WEBHOOK_TOKEN}" \
-  -F 'allowed_updates=["message", "edited_message", "inline_query"]' https://api.telegram.org/bot"${BOT_TOKEN}"/setWebhook \
+  -F 'allowed_updates=["message", "inline_query"]' https://api.telegram.org/bot"${BOT_TOKEN}"/setWebhook \
 ; echo
