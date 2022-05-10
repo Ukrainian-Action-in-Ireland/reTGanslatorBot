@@ -1,4 +1,4 @@
-name: Build and test bot code
+name: Build and test bot
 
 on:
   push:
@@ -6,7 +6,10 @@ on:
       - main
   pull_request: 
     # On every pull request in the repository
-    
+
+env:
+  PROD: 'false'
+
 jobs:
 
   build:
@@ -36,4 +39,4 @@ jobs:
       run: go build -v ./...
 
     - name: Test
-      run: go test -v -cover -race -count=1 ./...
+      run: go test -race -cover -v -count=1 ./...

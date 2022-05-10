@@ -1,4 +1,4 @@
-package webhook
+package reTGanslatorBot
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
+	urlpath "path"
 
 	"github.com/DzyubSpirit/reTGanslatorBot/bot"
 	_ "github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
@@ -14,17 +14,20 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-var (
-	botHandler      *bot.Handler
-	botWebhookToken string
-)
-
 func init() {
-	functions.HTTP("UpdateHandler", updateHandler)
+	v, ok := os.LookupEnv("PROD")
+	srv := NewServer(nil, "")
+	if ok && v != "true" && v != "false" {
+		log.Fatalln("wrong value for PROD env, expected 'true' of 'false'")
+	}
+	if ok && v == "true" {
+		srv = NewServerFromEnv()
+	}
+	functions.HTTP("WebhookHandler", srv.ServeHTTP)
 }
 
-func init() {
-	botWebhookToken = os.Getenv("WEBHOOK_TOKEN")
+func NewServerFromEnv() *Server {
+	botWebhookToken := os.Getenv("WEBHOOK_TOKEN")
 
 	botToken := os.Getenv("BOT_TOKEN")
 	if botToken == "" {
@@ -57,22 +60,55 @@ func init() {
 		log.Fatalf("Bot API failed to initialize: %v", err)
 	}
 
-	botHandler = bot.NewHandler(config, tgBot)
+	u := bot.NewHandler(config, tgBot)
 
 	tgBot.Debug = true
 
 	log.Printf("Authorized on account %s", tgBot.Self.UserName)
+
+	return NewServer(u, botWebhookToken)
 }
 
-func updateHandler(w http.ResponseWriter, r *http.Request) {
+type updater interface {
+	HandleUpdate(tgbotapi.Update) error
+}
+
+type Server struct {
+	token   string
+	updater updater
+	handler http.Handler
+}
+
+func NewServer(updater updater, token string) *Server {
+	s := Server{
+		updater: updater,
+		token:   token,
+	}
+	s.handler = s.buildHandler()
+	return &s
+}
+
+func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.handler.ServeHTTP(w, r)
+}
+
+func (s Server) buildHandler() *http.ServeMux {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/webhook/"+s.token, s.updateHandler)
+
+	return mux
+}
+
+func (s Server) updateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		log.Printf("Unknown HTTP method: %s", r.Method)
 		httpErr(w, http.StatusMethodNotAllowed)
 		return
 	}
 
-	if path := strings.Trim(r.URL.Path, "/"); path != botWebhookToken {
-		log.Printf("Wrong path %s", path)
+	if token := urlpath.Base(r.URL.Path); token != s.token {
+		log.Printf("Wrong token %s", token)
 		httpErr(w, http.StatusNotFound)
 		return
 	}
@@ -92,7 +128,7 @@ func updateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := botHandler.HandleUpdate(update); err != nil {
+	if err := s.updater.HandleUpdate(update); err != nil {
 		log.Printf("Handle incoming update: %v", err)
 		httpErr(w, http.StatusInternalServerError)
 	}
