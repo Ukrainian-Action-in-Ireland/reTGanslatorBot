@@ -15,10 +15,8 @@ import (
 )
 
 func init() {
-	var (
-		v, ok = os.LookupEnv("PROD")
-		srv   = NewServer(nil, "")
-	)
+	v, ok := os.LookupEnv("PROD")
+	srv := NewServer(nil, "")
 	if ok && v != "true" && v != "false" {
 		log.Fatalln("wrong value for PROD env, expected 'true' of 'false'")
 	}

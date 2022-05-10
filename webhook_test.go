@@ -34,7 +34,6 @@ func TestServer_updateHandler_happy_path(t *testing.T) {
 	payload, err := json.Marshal(u)
 	if err != nil {
 		t.Fatalf("unexpected error during marshaling update payload: %v\n", err)
-		return
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook/12345", bytes.NewReader(payload))

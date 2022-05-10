@@ -2,7 +2,7 @@
 
 set -e
 
-BOT_TOKEN=${BOT_TOKEN:-"<your_bot_token>"}
+BOT_TOKEN=${BOT_TOKEN:?"BOT_TOKEN must be specified"}
 WEBHOOK_FUNC_NAME=${WEBHOOK_FUNC_NAME:-"tg-webhook-updates"}
 WEBHOOK_FUNC_REGION=${WEBHOOK_FUNC_REGION:-"europe-west2"}
 WEBHOOK_TOKEN=${WEBHOOK_TOKEN:-$(openssl rand -hex 64)}
