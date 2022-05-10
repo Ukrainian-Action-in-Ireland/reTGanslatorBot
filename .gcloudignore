@@ -1,6 +1,9 @@
 .gcloudignore
+.git
 .gitignore
-Makefile
+.github
+deploy.sh
 README.md
 LICENSE
 cmd/
+gha-*.json
