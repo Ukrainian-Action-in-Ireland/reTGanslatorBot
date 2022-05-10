@@ -49,7 +49,6 @@ jobs:
 
       - name: Deploy Webhook Cloud Function
         env:
-          PROD: 'true'
           BOT_TOKEN: '${{ secrets.BOT_TOKEN }}'
           CONFIG_DATA: '${{ secrets.CONFIG_DATA }}'
           WEBHOOK_FUNC_NAME: 'tg-webhook-updates'

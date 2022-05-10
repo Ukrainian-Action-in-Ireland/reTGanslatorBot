@@ -15,12 +15,12 @@ import (
 )
 
 func init() {
-	v, ok := os.LookupEnv("PROD")
+	v, ok := os.LookupEnv("RUN_LOCAL")
 	srv := NewServer(nil, "")
 	if ok && v != "true" && v != "false" {
-		log.Fatalln("wrong value for PROD env, expected 'true' of 'false'")
+		log.Fatalln("wrong value for RUN_LOCAL env, expected 'true' of 'false'")
 	}
-	if ok && v == "true" {
+	if ok && v == "false" {
 		srv = NewServerFromEnv()
 	}
 	functions.HTTP("WebhookHandler", srv.ServeHTTP)
