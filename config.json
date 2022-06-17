@@ -15,5 +15,15 @@
       ]
     }
   ],
-  "help_contacts": ["@Kyslytsya", "@Karas", "@Valera", "@Arestovich"]
+  "help_contacts": ["@Kyslytsya", "@Karas", "@Valera", "@Arestovich"],
+  "membership_validation": {
+    "notification": {
+      "tg_chats": [
+        {
+          "id": 19910824,
+          "name": "Heimdall"
+        }
+      ]
+    }
+  }
 }
