@@ -51,15 +51,25 @@ async def validate(client: telethon.TelegramClient,
         users_per_id.update({user.id: user for user in users})
         user_ids_per_chat_id[chat_id] = {user.id for user in users}
     missing = find_missing(retg_config, user_ids_per_chat_id)
-    print_missing(users_per_id, chat_per_id, missing)
+    missing_text = format_missing(users_per_id, chat_per_id, missing)
+    print(missing_text)
+
+    if (not retg_config.membership_validation
+            or not retg_config.membership_validation.notification):
+
+        return
+
+    for chat in retg_config.membership_validation.notification.tg_chats:
+        chat_entity = await client.get_entity(chat.chat_id)
+        await client.send_message(chat_entity, missing_text)
 
 
-def print_missing(
+def format_missing(
     users_per_id: Mapping[int, UserFull],
     chat_per_id: Mapping[int, config.Chat],
     missing: Iterable[Missing],
-):
-    """Print missing memberships.
+) -> str:
+    """Format missing memberships.
 
     Args:
         users_per_id: user information from Telethon.
@@ -78,20 +88,23 @@ def print_missing(
         users_missing[miss.user_id][miss.missing_in_chat_id].add(
             miss.present_in_chat_id)
 
+    res = ""
+
     for user_id, chats in users_missing.items():
         user = users_per_id[user_id]
-        print()
-        print(f'User "{user.first_name} {user.last_name} '
-              f'@{user.username} {user.phone}" is missing in:')
+        res += (f'\nUser "{user.first_name} {user.last_name} '
+                f'@{user.username} {user.phone}" is missing in:\n')
 
         for missing_chat_id, present_chat_ids in chats.items():
             present_str = ", ".join([
                 f'"{chat_per_id[chat_id].aliases[0]}"'
                 for chat_id in present_chat_ids
             ])
-            print(
+            res += (
                 f'\t "{chat_per_id[missing_chat_id].aliases[0]}" even though '
-                f"they are in {present_str}")
+                f"they are in {present_str}\n")
+
+    return res
 
 
 def find_missing(
