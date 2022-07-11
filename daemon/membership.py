@@ -51,6 +51,9 @@ async def validate(client: telethon.TelegramClient,
         users_per_id.update({user.id: user for user in users})
         user_ids_per_chat_id[chat_id] = {user.id for user in users}
     missing = find_missing(retg_config, user_ids_per_chat_id)
+    if not missing:
+        return
+
     missing_text = format_missing(users_per_id, chat_per_id, missing)
     print(missing_text)
 
