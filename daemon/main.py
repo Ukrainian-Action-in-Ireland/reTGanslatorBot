@@ -26,7 +26,7 @@ if __name__ == "__main__":
     config_file_name = "config.json"
 
     if len(sys.argv) > 1:
-        config_file_name = sys.argv[2]
+        config_file_name = sys.argv[1]
 
     validate_env()
     TG_API_ID = os.environ["TG_API_ID"]
