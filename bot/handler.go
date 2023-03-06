@@ -165,13 +165,26 @@ func (bh Handler) message(update tgbotapi.Update) {
 }
 
 func (bh Handler) command(update tgbotapi.Update) {
+	msg := update.Message
+	if msg.CommandWithAt() != msg.Command() {
+		cmd := msg.CommandWithAt()
+		i := strings.Index(cmd, "@")
+		at := cmd[i+1:]
+		if at != "reTGanslatorBot" {
+			return
+		}
+	}
+	if msg.Command() != "help" {
+		return
+	}
+
 	aliases := bh.config.AllAliases()
 	for i := range aliases {
 		aliases[i] = "*" + strings.ToLower(aliases[i])
 	}
 	aliasesStr := strings.Join(aliases, " ")
 	contactsStr := strings.Join(bh.config.HelpContacts, " ")
-	msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf(`
+	newMsg := tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf(`
 Щоб переслати повідомлення в інший UACT чат:
 
 (а) Ще не відправлене повідомлення
@@ -187,7 +200,7 @@ func (bh Handler) command(update tgbotapi.Update) {
 
 За поясненням до тегів і як працює пересилка, звертайтеся до %s
 	`, aliasesStr, contactsStr))
-	bh.bot.Send(msg)
+	bh.bot.Send(newMsg)
 }
 
 func (bh Handler) HandleUpdate(update tgbotapi.Update) error {
