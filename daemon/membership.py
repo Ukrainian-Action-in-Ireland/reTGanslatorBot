@@ -18,7 +18,9 @@ from telethon.tl.types import UserFull
 import config
 
 Missing = collections.namedtuple(
-    "Missing", ["user_id", "missing_in_chat_id", "present_in_chat_id"])
+    "Missing", ["user_id", "present_in_chat_id",
+                "missing_in_chat_id", "missing_in_children_chats"],
+    defaults={"missing_in_chat_id": None, "missing_in_children_chats": None})
 
 
 async def validate(client: telethon.TelegramClient,
@@ -50,7 +52,16 @@ async def validate(client: telethon.TelegramClient,
         users = list(users_total_list)
         users_per_id.update({user.id: user for user in users})
         user_ids_per_chat_id[chat_id] = {user.id for user in users}
-    missing = find_missing(retg_config, user_ids_per_chat_id)
+
+    missing = []
+    missing_in_children = find_missing_in_children(
+        reg_config, user_ids_per_chat_id)
+    if missing_in_children:
+        missing.extend(missing_in_children)
+    missing_in_parent = find_missing_in_parent(
+        retg_config, user_ids_per_chat_id)
+    if missing_in_parent:
+        missing.extend(missing_in_parent)
     if not missing:
         return
 
@@ -59,7 +70,6 @@ async def validate(client: telethon.TelegramClient,
 
     if (not retg_config.membership_validation
             or not retg_config.membership_validation.notification):
-
         return
 
     for chat in retg_config.membership_validation.notification.tg_chats:
@@ -86,10 +96,17 @@ def format_missing(
         if miss.user_id not in users_missing:
             users_missing[miss.user_id] = {}
 
-        if miss.missing_in_chat_id not in users_missing[miss.user_id]:
-            users_missing[miss.user_id][miss.missing_in_chat_id] = set()
-        users_missing[miss.user_id][miss.missing_in_chat_id].add(
-            miss.present_in_chat_id)
+        if miss.missing_in_chat_id:
+            if miss.missing_in_chat_id not in users_missing[miss.user_id]:
+                users_missing[miss.user_id][miss.missing_in_chat_id] = set()
+            users_missing[miss.user_id][miss.missing_in_chat_id].add(
+                miss.present_in_chat_id)
+
+        if miss.missing_in_children_chats:
+            if "child chats" not in child_chats_missing[miss.user_id]:
+                child_chats_missing[miss.user_id]["child chats"] = set()
+            child_chats_missing[miss.user_id]["child chats"].add(
+                miss.present_in_chat_id)
 
     res = ""
 
@@ -103,17 +120,20 @@ def format_missing(
                 f'"{chat_per_id[chat_id].aliases[0]}"'
                 for chat_id in present_chat_ids
             ])
-            res += (
-                f'\t "{chat_per_id[missing_chat_id].aliases[0]}" even though '
-                f"they are in {present_str}\n")
+            if missing_chat_id == "child chats":
+                res += f"\t child chats of {present_str}\n"
+            else:
+                res += (
+                    f'\t "{chat_per_id[missing_chat_id].aliases[0]}" even though '
+                    f"they are in {present_str}\n")
 
     return res
 
 
-def find_missing(
+def find_missing_in_parent(
         retg_config: config.Config,
         user_ids_per_chat_id: Mapping[int, Set[int]]) -> List[Missing]:
-    """Finds chats where required people are missing.
+    """Finds parent chats which do not have people from children chats.
     Args:
         retg_config: reTGanslator config specifying the chat structure.
         user_ids_per_chat_id: specifying what users are in which chats.
@@ -152,8 +172,46 @@ def find_missing_in_hierarchy_line(
             if not descendant_users.issubset(ancestor_users):
                 missing_user_ids = descendant_users.difference(ancestor_users)
                 missing_membership.extend([
-                    Missing(user_id, ancestor_chat_id, descendant_chat_id)
+                    Missing(user_id, descendant_chat_id,
+                            missing_in_chat_id=ancestor_chat_id)
                     for user_id in missing_user_ids
                 ])
 
     return missing_membership
+
+
+def find_missing_in_children(
+        retg_config: config.Config,
+        user_ids_per_chat_id: Mapping[int, Set[int]],
+) -> Sequence[Missing]:
+    """Finds chats not having a person in any of children chats.
+    Args:
+        retg_config: reTGanslator config specifying the chat structure.
+        user_ids_per_chat_id: specifying what users are in which chats.
+    """
+    return itertools.chain(
+        *(find_missing_in_children_for_chat(user_ids_per_chat_id, chat)
+          for chat in retg_config.chats
+          if chat.members_must_be_in_any_child_chat
+          ))
+
+
+def find_missing_in_children_for_chat(
+        user_ids_per_chat_id: Mapping[int, Set[int]],
+        chat: config.Chat,
+) -> List[Missing]:
+    users_in_children = set().union(
+        *(users_in_chat_tree(user_ids_per_chat_id, chat) for chat in chat.child_chats)
+    )
+    return [Missing(user, chat.chat_id, missing_in_children_chats=True)
+            for user in user_ids_per_chat_id[chat.chat_id]
+            if user not in users_in_children]
+
+
+def users_in_chat_tree(
+        user_ids_per_chat_id: Mapping[int, Set[int]],
+        root_chat: config.Chat,
+) -> Set[int]:
+    return set().union(user_ids_per_chat_id[root_chat.chat_id],
+                       *(users_in_chat_tree(user_ids_per_chat_id, chat) for chat in root_chat.child_chats)
+                       )

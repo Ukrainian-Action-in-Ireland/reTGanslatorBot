@@ -5,11 +5,13 @@ from typing import Iterable, List, Sequence
 class Chat:
     chat_id: int
     aliases: Sequence[str]
+    members_must_be_in_any_child_chat: bool
     child_chats: Sequence["Chat"]
 
-    def __init__(self, chat_id, aliases, child_chats=None):
+    def __init__(self, chat_id, aliases, members_must_be_in_any_child_chat=False, child_chats=None):
         self.chat_id = chat_id
         self.aliases = aliases
+        self.members_must_be_in_any_child_chat = members_must_be_in_any_child_chat
         self.child_chats = child_chats if child_chats else []
 
     @staticmethod
