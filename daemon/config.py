@@ -77,6 +77,7 @@ class MembershipValidation:
 class Config:
     chats: Sequence[Chat]
     help_contacts: Iterable[str]
+    membership_validation: MembershipValidation
 
     def __init__(self, chats, help_contacts, membership_validation):
         self.chats = chats
