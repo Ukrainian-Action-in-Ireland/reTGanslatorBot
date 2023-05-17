@@ -93,6 +93,18 @@ class Test_find_missing_in_children(unittest.TestCase):
             },
             [],
         ),
+        (
+            "child chats having users not present in the parent chat do not return missing in child chats",
+            Config(
+                chats=[Chat(1234, [], members_must_be_in_any_child_chat=True,
+                            child_chats=[Chat(4321, [])])],
+                help_contacts=[], membership_validation=MembershipValidation()),
+            {
+                1234: [],
+                4321: [2424],
+            },
+            [],
+        ),
     ])
     def test_returned_missing_is_correct(self, _, config, user_ids_per_chat_id, want_missing):
         got_missing = find_missing_in_children(config, user_ids_per_chat_id)

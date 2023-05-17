@@ -20,7 +20,7 @@ import config
 Missing = collections.namedtuple(
     "Missing", ["user_id", "present_in_chat_id",
                 "missing_in_chat_id", "missing_in_children_chats"],
-    defaults={"missing_in_chat_id": None, "missing_in_children_chats": None})
+    defaults=(None, None))
 
 
 async def validate(client: telethon.TelegramClient,
@@ -55,7 +55,7 @@ async def validate(client: telethon.TelegramClient,
 
     missing = []
     missing_in_children = find_missing_in_children(
-        reg_config, user_ids_per_chat_id)
+        retg_config, user_ids_per_chat_id)
     if missing_in_children:
         missing.extend(missing_in_children)
     missing_in_parent = find_missing_in_parent(
@@ -92,6 +92,7 @@ def format_missing(
     """
     users_missing: Dict[int, Dict[int, Set[int]]] = {}
 
+    print(missing)
     for miss in missing:
         if miss.user_id not in users_missing:
             users_missing[miss.user_id] = {}
@@ -103,9 +104,9 @@ def format_missing(
                 miss.present_in_chat_id)
 
         if miss.missing_in_children_chats:
-            if "child chats" not in child_chats_missing[miss.user_id]:
-                child_chats_missing[miss.user_id]["child chats"] = set()
-            child_chats_missing[miss.user_id]["child chats"].add(
+            if "child chats" not in users_missing[miss.user_id]:
+                users_missing[miss.user_id]["child chats"] = set()
+            users_missing[miss.user_id]["child chats"].add(
                 miss.present_in_chat_id)
 
     res = ""
@@ -121,10 +122,10 @@ def format_missing(
                 for chat_id in present_chat_ids
             ])
             if missing_chat_id == "child chats":
-                res += f"\t child chats of {present_str}\n"
+                res += f"\t - child chats of {present_str}\n"
             else:
                 res += (
-                    f'\t "{chat_per_id[missing_chat_id].aliases[0]}" even though '
+                    f'\t - "{chat_per_id[missing_chat_id].aliases[0]}" even though '
                     f"they are in {present_str}\n")
 
     return res
